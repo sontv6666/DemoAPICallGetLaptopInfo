@@ -1,12 +1,24 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException, Security
+from fastapi.security import APIKeyHeader
 import psutil
 import GPUtil
 import platform
-import os
 
+# Define API token
+API_TOKEN = "my_secure_token_123"
+
+# Create FastAPI app
 app = FastAPI()
 
+# Define API Key security
+api_key_header = APIKeyHeader(name="API_KEY", auto_error=True)
 
+def validate_api_key(api_key: str = Security(api_key_header)):
+    """Validate API Key"""
+    if api_key != API_TOKEN:
+        raise HTTPException(status_code=401, detail="Invalid API Key")
+
+# System Info Functions
 def get_cpu_info():
     return {
         "brand": platform.processor(),
@@ -14,7 +26,6 @@ def get_cpu_info():
         "threads": psutil.cpu_count(logical=True),
         "frequency": psutil.cpu_freq()._asdict()
     }
-
 
 def get_gpu_info():
     gpus = GPUtil.getGPUs()
@@ -27,9 +38,7 @@ def get_gpu_info():
         "load": f"{gpu.load * 100} %",
         "driver_version": gpu.driver
     } for gpu in gpus]
-
     return gpu_list if gpu_list else [{"message": "No GPU detected"}]
-
 
 def get_ram_info():
     ram = psutil.virtual_memory()
@@ -40,22 +49,19 @@ def get_ram_info():
         "percent": f"{ram.percent} %"
     }
 
-
+# Protected Endpoints
 @app.get("/")
 def home():
     return {"message": "Welcome to System Info API!"}
 
-
-@app.get("/cpu")
+@app.get("/cpu", dependencies=[Depends(validate_api_key)])
 def cpu_info():
     return get_cpu_info()
 
-
-@app.get("/gpu")
+@app.get("/gpu", dependencies=[Depends(validate_api_key)])
 def gpu_info():
     return get_gpu_info()
 
-
-@app.get("/ram")
+@app.get("/ram", dependencies=[Depends(validate_api_key)])
 def ram_info():
     return get_ram_info()
