@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, Security
 from fastapi.security import APIKeyHeader
+from fastapi.middleware.cors import CORSMiddleware
 import psutil
 import GPUtil
 import platform
@@ -9,6 +10,15 @@ API_TOKEN = "my_secure_token_123"
 
 # Create FastAPI app
 app = FastAPI()
+
+# Enable CORS (Allow frontend to access API)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins (change if needed)
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
+)
 
 # Define API Key security
 api_key_header = APIKeyHeader(name="API_KEY", auto_error=True)
@@ -40,14 +50,34 @@ def get_gpu_info():
     } for gpu in gpus]
     return gpu_list if gpu_list else [{"message": "No GPU detected"}]
 
+
 def get_ram_info():
     ram = psutil.virtual_memory()
+    swap = psutil.swap_memory()
+
     return {
-        "total": f"{ram.total / (1024 ** 3):.2f} GB",
-        "available": f"{ram.available / (1024 ** 3):.2f} GB",
-        "used": f"{ram.used / (1024 ** 3):.2f} GB",
-        "percent": f"{ram.percent} %"
+        "physical_memory": {
+            "total": f"{ram.total / (1024 ** 3):.2f} GB",
+            "available": f"{ram.available / (1024 ** 3):.2f} GB",
+            "used": f"{ram.used / (1024 ** 3):.2f} GB",
+            "free": f"{ram.free / (1024 ** 3):.2f} GB",
+            "percent_used": f"{ram.percent} %",
+            "active": f"{ram.active / (1024 ** 3):.2f} GB",
+            "inactive": f"{ram.inactive / (1024 ** 3):.2f} GB",
+            "buffers": f"{ram.buffers / (1024 ** 3):.2f} GB",
+            "cached": f"{ram.cached / (1024 ** 3):.2f} GB",
+            "shared": f"{ram.shared / (1024 ** 3):.2f} GB",
+        },
+        "swap_memory": {
+            "total": f"{swap.total / (1024 ** 3):.2f} GB",
+            "used": f"{swap.used / (1024 ** 3):.2f} GB",
+            "free": f"{swap.free / (1024 ** 3):.2f} GB",
+            "percent_used": f"{swap.percent} %",
+            "swapped_in": f"{swap.sin / (1024 ** 3):.2f} GB",
+            "swapped_out": f"{swap.sout / (1024 ** 3):.2f} GB"
+        }
     }
+
 
 # Protected Endpoints
 @app.get("/")
